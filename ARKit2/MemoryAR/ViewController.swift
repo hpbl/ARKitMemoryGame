@@ -11,6 +11,12 @@ import SceneKit
 import ARKit
 
 class ViewController: UIViewController {
+    
+    var score = 0
+    let allpieces = [1, 2, 3, 4, 5, 6]
+    var cobinations: [(Int, Int, UIColor)] = [
+        (1, 2, .red), (3, 4, .green), (5, 6, .blue)
+    ]
 
     @IBOutlet var sceneView: ARSCNView!
     
@@ -49,15 +55,14 @@ class ViewController: UIViewController {
     }
 
     
-    func overlayForImage(named: String) -> UIColor {
-        switch named {
-        case "rrb1":
-            return .blue
-        case "rrb2":
-            return .green
-        default:
-            fatalError("Unexpected image name \(named)")
+    func colorForImage(number: Int) -> UIColor? {
+        for (firstNumber, secondNumber, color) in self.cobinations {
+            if number == firstNumber || number == secondNumber {
+                return color
+            }
         }
+        
+        return nil
     }
 }
 
@@ -75,8 +80,8 @@ extension ViewController: ARSCNViewDelegate {
         planeNode.opacity = 0.5
         planeNode.eulerAngles.x = -.pi / 2
         
-        planeNode.geometry?.firstMaterial?.diffuse.contents = self.overlayForImage(
-            named: referenceImage.name!
+        planeNode.geometry?.firstMaterial?.diffuse.contents = self.colorForImage(
+            number: Int(referenceImage.name!)!
         )
         
         node.addChildNode(planeNode)
