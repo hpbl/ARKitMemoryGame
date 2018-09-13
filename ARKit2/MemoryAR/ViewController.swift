@@ -12,8 +12,21 @@ import ARKit
 
 class ViewController: UIViewController {
     
-    var score = 0
-    let allpieces = [1, 2, 3, 4, 5, 6]
+    @IBOutlet weak var scoreLabel: UILabel!
+    @IBOutlet weak var winnerLabel: UILabel!
+    
+    var score = 0 {
+        didSet {
+            DispatchQueue.main.async {
+                if self.score == self.cobinations.count {
+                    self.winnerLabel.isHidden = false
+                }
+                self.scoreLabel.text = "score: \(self.score)"
+            }
+        }
+    }
+    let allPieces = [1, 2, 3, 4, 5, 6]
+    var currentPiecesTracked: [Int] = []
     var cobinations: [(Int, Int, UIColor)] = [
         (1, 2, .red), (3, 4, .green), (5, 6, .blue)
     ]
@@ -64,6 +77,36 @@ class ViewController: UIViewController {
         
         return nil
     }
+    
+    func foundPiece(_ number: Int) {
+        self.currentPiecesTracked.append(number)
+        
+        if self.currentPiecesTracked.count == 2 {
+            let firstPiece = self.currentPiecesTracked[0]
+            let secondPiece = self.currentPiecesTracked[1]
+            if self.colorForImage(number: firstPiece) == self.colorForImage(number: secondPiece) {
+                self.score = self.score + 1
+                
+                if let imageConfig = self.sceneView.session.configuration as? ARImageTrackingConfiguration {
+                    let referenceImages = imageConfig.trackingImages.filter { (referenceImage) -> Bool in
+                        Int(referenceImage.name!)! == firstPiece || Int(referenceImage.name!)! == secondPiece
+                    }
+                    
+                    referenceImages.forEach { (image) in
+                        imageConfig.trackingImages.remove(image)
+                    }
+                    
+                    self.sceneView.session.run(imageConfig)
+                    
+                    DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 2) {
+                        self.sceneView.scene.rootNode.enumerateChildNodes { (node, _) in
+                            node.removeFromParentNode()
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 
@@ -80,10 +123,27 @@ extension ViewController: ARSCNViewDelegate {
         planeNode.opacity = 0.5
         planeNode.eulerAngles.x = -.pi / 2
         
+        
+        let pieceName = Int(referenceImage.name!)!
         planeNode.geometry?.firstMaterial?.diffuse.contents = self.colorForImage(
-            number: Int(referenceImage.name!)!
+            number: pieceName
         )
         
         node.addChildNode(planeNode)
+        
+        self.foundPiece(pieceName)
+    }
+    
+    func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
+        if let imageAnchor = anchor as? ARImageAnchor{
+            if !imageAnchor.isTracked {
+                // The image is lost
+                self.currentPiecesTracked.removeAll { (element) -> Bool in
+                    element == Int(imageAnchor.name!)
+                }
+                self.sceneView.session.remove(anchor: anchor)
+                print("removed \(imageAnchor.name!)")
+            }
+        }
     }
 }
